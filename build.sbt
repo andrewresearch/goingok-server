@@ -3,7 +3,7 @@ version := "1.0.0"
 scalaVersion := "2.12.2"
 organization := "org.goingok"
 
-enablePlugins(JavaAppPackaging)
+//enablePlugins(JavaAppPackaging)
 
 //Scala library versions
 val akkaVersion = "2.5.1"

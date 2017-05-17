@@ -64,3 +64,5 @@ libraryDependencies ++= Seq(
 )
 
 scalacOptions in (Compile, doc) ++= Seq("-doc-root-content", baseDirectory.value+"/src/main/scala/root-doc.md")
+
+resolvers += Resolver.bintrayRepo("nlytx", "nlytx_commons")

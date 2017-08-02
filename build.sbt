@@ -1,5 +1,5 @@
 name := "goingok-server"
-version := "1.0.1"
+version := "1.0.2"
 scalaVersion := "2.12.3"
 organization := "org.goingok"
 
@@ -59,8 +59,8 @@ scalacOptions in (Compile, doc) ++= Seq("-doc-root-content", baseDirectory.value
 resolvers += Resolver.bintrayRepo("nlytx", "nlytx_commons")
 
 //Generate build info file
-//lazy val root = (project in file(".")).
-enablePlugins(BuildInfoPlugin)
-  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-  buildInfoPackage := "org.goingok"
-  buildInfoOptions += BuildInfoOption.BuildTime
+//Disable for travis CI
+//enablePlugins(BuildInfoPlugin)
+//  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+//  buildInfoPackage := "org.goingok"
+//  buildInfoOptions += BuildInfoOption.BuildTime

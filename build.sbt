@@ -1,11 +1,10 @@
 name := "goingok-server"
-version := "1.0.2"
+version := "1.0.3"
 scalaVersion := "2.12.3"
 organization := "org.goingok"
 
 //Enable this only for local builds - disabled for Travis
 enablePlugins(JavaAppPackaging)
-//enablePlugins(DockerPlugin)
 dockerExposedPorts := Seq(8080)
 
 //Scala library versions

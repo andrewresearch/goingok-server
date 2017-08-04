@@ -4,7 +4,9 @@ scalaVersion := "2.12.3"
 organization := "org.goingok"
 
 //Enable this only for local builds - disabled for Travis
-//enablePlugins(JavaAppPackaging)
+enablePlugins(JavaAppPackaging)
+//enablePlugins(DockerPlugin)
+dockerExposedPorts := Seq(8080)
 
 //Scala library versions
 val akkaVersion = "2.5.3"
@@ -27,7 +29,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 )
 //Google dependencies
-libraryDependencies += "com.google.api-client" % "google-api-client" % googleClientApiVersion
+libraryDependencies ++= Seq(
+  "com.google.api-client" % "google-api-client" % googleClientApiVersion,
+  "org.apache.httpcomponents" % "httpclient" % "4.5.3" //To patch older version in google client
+)
 //Sessions
 libraryDependencies ++= Seq(
   "com.softwaremill.akka-http-session" %% "core" % "0.5.1",
@@ -60,7 +65,8 @@ resolvers += Resolver.bintrayRepo("nlytx", "nlytx_commons")
 
 //Generate build info file
 //Disable for travis CI
-//enablePlugins(BuildInfoPlugin)
-//  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-//  buildInfoPackage := "org.goingok"
-//  buildInfoOptions += BuildInfoOption.BuildTime
+enablePlugins(BuildInfoPlugin)
+  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+  buildInfoPackage := "org.goingok"
+  buildInfoOptions += BuildInfoOption.BuildTime
+

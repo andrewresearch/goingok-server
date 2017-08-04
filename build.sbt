@@ -68,4 +68,3 @@ enablePlugins(BuildInfoPlugin)
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
   buildInfoPackage := "org.goingok"
   buildInfoOptions += BuildInfoOption.BuildTime
-

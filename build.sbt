@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
 )
 //Google dependencies
 libraryDependencies ++= Seq(
-  "com.google.api-client" % "google-api-client" % googleClientApiVersion,
+  "com.google.api-client" % "google-api-client" % googleClientApiVersion exclude("org.apache.httpcomponents","httpclient"),
   "org.apache.httpcomponents" % "httpclient" % "4.5.3" //To patch older version in google client
 )
 //Sessions
@@ -44,8 +44,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick" % slickVersion,
   "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
   "org.postgresql" % "postgresql" % postgresDriverVersion,
-  "com.github.tminglei" %% "slick-pg" % slickpgVersion,
-  "com.github.tminglei" %% "slick-pg_json4s" % slickpgVersion
+  "com.github.tminglei" %% "slick-pg" % slickpgVersion exclude("org.postgresql","postgresql"), //provided by postgresql
+  "com.github.tminglei" %% "slick-pg_json4s" % slickpgVersion exclude("org.json4s","json4s-ast_2.12") //provided by json4s
 )
 //General
 libraryDependencies ++= Seq(

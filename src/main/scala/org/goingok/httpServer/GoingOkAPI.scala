@@ -1,67 +1,53 @@
 package org.goingok.httpServer
 
-import akka.http.scaladsl.model.{DateTime, HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.Directives._
-import akka.util.ByteString
-import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.{HttpHeader, HttpRequest}
 import akka.http.scaladsl.model.headers.RawHeader
-import com.softwaremill.session.{SessionConfig, SessionManager}
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.StandardRoute
 import org.goingok._
 import org.goingok.data.models.{GokId, ReflectionEntry, Research, ServerInfo}
 import org.goingok.handlers.{AuthorisationHandler, ProfileHandler}
-import org.goingok.message.{HandlerMessage, JsonMessage}
-import org.json4s.JsonAST.JString
-
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Future
+import org.goingok.message.HandlerMessage
+import org.goingok.services.ProfileService
 
 /**
   * Created by andrew@andrewresearch.net on 20/2/17.
   */
-trait GoingOkAPI extends GenericApi {
+trait GoingOkAPI extends GenericApi with CorsSupport {
 
   import GoingOkContext._
-  import com.softwaremill.session.SessionDirectives._
-  import com.softwaremill.session.SessionOptions._
 
-  val sessionConfig = SessionConfig.default("some_1very2_long3_secret4_and3_random5_string7_some9_very2_long4_secret6_and8_random10_string100")
-  implicit val sessionManager = new SessionManager[String](sessionConfig)
+  override val version = "v1"
+  override val details: String = "no details yet" // ApiInfo(Config.name,Config.description,Config.version,Config.colour)
 
-  val profileRoutes = pathPrefix("profile") {
-    options { complete("")} ~
-    get {
-      requiredSession(oneOff, usingHeaders) { session =>
-        log.info("Successfully requested profile using session: "+ session)
-        complete(ProfileHandler.process(HandlerMessage.Profile(session)))
+  override val routes = root ~pathPrefix(version) {
+    healthRoute ~ adminRoutes ~ customRoutes ~ nothingHere
+  }
+
+    override val customRoutes = {
+      pathPrefix("client") {
+        //extractRequest { request =>
+          //log.warning(s"Headers: ${request.headers}")
+          profileRoutes ~ authRoutes
+        //}
       }
-    } ~
-    pathPrefix("reflection") {
+    }
+
+  val authRoutes = allowAuthCors {
+    pathPrefix("auth") {
       post {
-        requiredSession(oneOff, usingHeaders) { session =>
-          log.info("Successfully saved reflection using session: "+ session)
-          //import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers.stringUnmarshaller
-          entity(as[Option[ReflectionEntry]]) { ref =>
-            if (ref.isEmpty) complete("A ReflectionMsg  Entry is required")
-            else {
-              val entry = ref.get
-              log.info(s"ReflectionMsg entry for $session: ${entry.toString}")
-              complete(ProfileHandler.process(HandlerMessage.ReflectionMsg(session,entry)))
-            }
-          }
-        }
-      }
-    }~
-    pathPrefix("research") {
-      post {
-        requiredSession(oneOff, usingHeaders) { session =>
-          log.info("Successfully saved research using session: "+ session)
-          //import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers.stringUnmarshaller
-          entity(as[Option[Research]]) { res =>
-            if (res.isEmpty) complete("A Research  Entry is required")
-            else {
-              val entry = res.get
-              log.info(s"ResearchMsg entry for $session: ${entry.toString}")
-              complete(ProfileHandler.process(HandlerMessage.ResearchMsg(session,entry)))
+        import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers.stringUnmarshaller
+        entity(as[String]) { str =>
+          if (str.isEmpty) complete("An  ID Token is required")
+          else {
+            log.debug(s"ID token:  $str")
+            val authMsg = HandlerMessage.Authorisation(str)
+            onComplete(AuthorisationHandler.process(authMsg)) { gokId =>
+              val id = gokId.get
+              log.info(s"Session set to: $id")
+              respondWithHeader(RawHeader("Set-Authorization",id)) {
+                complete(GokId(id))
+              }
             }
           }
         }
@@ -69,23 +55,93 @@ trait GoingOkAPI extends GenericApi {
     }
   }
 
-  val authRoutes = pathPrefix("auth") {
-    post {
-      import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers.stringUnmarshaller
-      entity(as[String]) { str =>
-        if (str.isEmpty) complete("An  ID Token is required")
-        else {
-          val authMsg = HandlerMessage.Authorisation(str)
-          onComplete(AuthorisationHandler.process(authMsg)) {gokId =>
-            val id = gokId.get
-            //System.out.println("FINAL ID: ",id)
-            setSession(oneOff, usingHeaders, id) { ctx =>
-              ctx.complete(GokId(id))
+  def completeWithSession(request:HttpRequest,handler:String="profile",entry:Option[Any] = None):StandardRoute = {
+    //log.warning("HEADERS: "+request.headers.toString)
+    val session = request.headers.map(h => (h.name -> h.value.split(" ").last)).toMap.getOrElse("Authorization","no-session")
+    //log.warning("Extracted Session: "+session)
+    handler match {
+      case "profile" => complete(ProfileHandler.process(HandlerMessage.Profile(session)))
+      case "reflection" => {
+        if (entry.nonEmpty) complete(ProfileHandler.process(HandlerMessage.ReflectionMsg(session, entry.get.asInstanceOf[ReflectionEntry])))
+        else complete("A reflection entry is required")
+      }
+      case "research" => {
+        log.info(s"ResearchMsg entry for $session: ${entry.toString}")
+        if (entry.nonEmpty) complete(ProfileHandler.process(HandlerMessage.ResearchMsg(session, entry.get.asInstanceOf[Research])))
+        else complete("A research entry is required")
+      }
+    }
+
+  }
+
+  val profileRoutes = pathPrefix("profile") {
+    allowProfReadCors(get(extractRequest(completeWithSession(_)))) ~
+      pathPrefix("reflection") {
+        import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+        cors() {
+          post {
+            entity(as[Option[ReflectionEntry]]) { ref =>
+              log.warning("ReflectionEntry: "+ref)
+              extractRequest(completeWithSession(_,"reflection",ref))
             }
           }
         }
+
+
+
+      } ~ pathPrefix("research") {
+          //allowProfWriteCors(options(complete("pre-flight for research"))) ~
+      import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+          cors() {
+            post {
+              entity(as[Option[Research]]) { res =>
+                if (res.isEmpty) complete("A Research  Entry is required")
+                else {
+                  extractRequest(completeWithSession(_, "research", res))
+                  //complete(ProfileHandler.process(HandlerMessage.ResearchMsg(session, entry)))
+                }
+              }
+            }
+          }
       }
     }
+
+
+
+  lazy val serverInfo = ServerInfo(BuildInfo.name, BuildInfo.version, BuildInfo.builtAtString)
+
+  override val adminRoutes = allowBasicCors {
+    //extractRequest { request =>
+      //log.warning(s"Headers: ${request.headers}")
+      pathPrefix("admin") {
+        path("version") {
+          get {
+            log.info("Version request")
+            complete(serverInfo)
+          }
+        } ~
+        get {
+          nothingHere
+        }
+      }
+    //}
+  }
+
+
+}
+
+//override val CustomExceptionHandler = ExceptionHandler {
+//  case _: UnknownAnalysisType =>
+//  extractUri { uri =>
+//  log.error(s"Request to $uri did not include a valid analysis type")
+//  complete(HttpResponse(StatusCodes.InternalServerError, entity = "The request did not include a valid analysis type"))
+//}
+//  case e: UnAuthorizedAccess => {
+//  log.error(s"Request is not authorized")
+//  complete(HttpResponse(StatusCodes.Forbidden, entity = e.message))
+//}
+//
+//}
 //    extractUnmatchedPath { param =>
 //      if (!param.isEmpty) {
 //        post {
@@ -103,27 +159,3 @@ trait GoingOkAPI extends GenericApi {
 //      }
 //      else nothingHere
 //    }
-  }
-
-
-
-  override val customRoutes = pathPrefix("client") {
-
-    profileRoutes ~ authRoutes
-
-  }
-
-  lazy val serverInfo = ServerInfo(BuildInfotest.name,BuildInfotest.version,BuildInfotest.builtAtString)
-
-  override val adminRoutes = pathPrefix("admin") {
-    path("version") {
-        get {
-            log.info("Version request")
-            complete(serverInfo)
-        }
-    } ~
-    get { nothingHere }
-  }
-
-
-}

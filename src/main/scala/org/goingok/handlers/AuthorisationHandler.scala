@@ -12,6 +12,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import org.goingok.Config
 import org.goingok.data.models.{GoogleUser, UserAuth}
 import org.goingok.data.persistence.db.DatabaseOps
+import org.goingok.message.Exception.UnAuthorizedAccess
 import org.goingok.services.UserService
 
 import scala.util.Success
@@ -40,6 +41,7 @@ object AuthorisationHandler {
     val payload:Payload = if (idToken != null) idToken.getPayload()
       else {
         log.warning("Invalid ID token.")
+        throw UnAuthorizedAccess("Invalid ID token.")
         new Payload
       }
 

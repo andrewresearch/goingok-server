@@ -4,17 +4,26 @@ scalaVersion := "2.12.3"
 organization := "org.goingok"
 
 //Enable this only for local builds - disabled for Travis
-enablePlugins(JavaAppPackaging)
-dockerExposedPorts := Seq(8080)
+//enablePlugins(JavaAppPackaging)
+//dockerExposedPorts := Seq(8080)
+//Generate build info file
+//Disable for travis CI
+enablePlugins(BuildInfoPlugin)
+buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
+buildInfoPackage := "org.goingok"
+buildInfoOptions += BuildInfoOption.BuildTime
+
 
 //Scala library versions
 val akkaVersion = "2.5.3"
-val akkaStreamVersion = "2.5.3"
-val akkaHttpVersion = "10.0.9"
+val akkaStreamVersion = akkaVersion
+val akkaHttpVersion = "10.0.5"
 val json4sVersion = "3.5.3"
 val slickVersion = "3.2.1"
 val slickpgVersion = "0.15.3"
 val slf4jVersion = "1.7.25"
+val akkaSessionVersion = "0.5.1"
+val akkaCorsVersion = "0.2.1"
 //Java library versions
 val googleClientApiVersion = "1.22.0"
 val postgresDriverVersion = "42.1.4"
@@ -32,10 +41,11 @@ libraryDependencies ++= Seq(
   "com.google.api-client" % "google-api-client" % googleClientApiVersion exclude("org.apache.httpcomponents","httpclient"),
   "org.apache.httpcomponents" % "httpclient" % "4.5.3" //To patch older version in google client
 )
-//Sessions
+//Sessions and Cors
 libraryDependencies ++= Seq(
-  "com.softwaremill.akka-http-session" %% "core" % "0.5.1",
-  "com.softwaremill.akka-http-session" %% "jwt"  % "0.5.1"
+  "com.softwaremill.akka-http-session" %% "core" % akkaSessionVersion,
+  //"com.softwaremill.akka-http-session" %% "jwt"  % akkaSessionVersion,
+  "ch.megard" %% "akka-http-cors" % akkaCorsVersion
 )
 
 //Slick
@@ -49,7 +59,7 @@ libraryDependencies ++= Seq(
 //General
 libraryDependencies ++= Seq(
   "io.nlytx" %% "commons" % "0.1.1",
-//  "com.typesafe" % "config" % "1.3.1",
+  "com.typesafe" % "config" % "1.3.1",
     "org.json4s" %% "json4s-jackson" % json4sVersion,
     "de.heikoseeberger" %% "akka-http-json4s" % "1.17.0",
 //  "org.scalactic" %% "scalactic" % "3.0.0",
@@ -62,9 +72,3 @@ scalacOptions in (Compile, doc) ++= Seq("-doc-root-content", baseDirectory.value
 
 resolvers += Resolver.bintrayRepo("nlytx", "nlytx_commons")
 
-//Generate build info file
-//Disable for travis CI
-enablePlugins(BuildInfoPlugin)
-  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-  buildInfoPackage := "org.goingok"
-  buildInfoOptions += BuildInfoOption.BuildTime

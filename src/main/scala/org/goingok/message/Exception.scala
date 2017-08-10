@@ -6,4 +6,6 @@ package org.goingok.message
 object Exception {
 
   case class UnknownAnalysisType(message: String) extends Exception(message)
+
+  case class UnAuthorizedAccess(message: String) extends Exception(message)
 }
